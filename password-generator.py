@@ -28,7 +28,7 @@ def home():
     if request.method == 'POST':
         passlen = int(request.form.get('passlen', 0))
         if passlen < 8 or passlen > 20:
-            notification = "The password length must be between 8 and 20."
+            notification = "The password length must be between 8 and 20 only."
             passstr = ""
         else:
             passstr = generate_password(passlen)
