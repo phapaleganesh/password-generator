@@ -1,0 +1,65 @@
+pipeline {
+    agent any
+    
+    environment {
+        DOCKER_IMAGE_NAME = '060696/password-generator'
+        DOCKERFILE_PATH = './Dockerfile'
+        registryCredential = 'dockerhub-login'
+    }
+    
+    stages {
+        stage('GIT CHECKOUT') {
+          steps {
+              git branch: "main",
+              credentialsId: 'password-generator-repo',
+              url: 'git@github.com:phapaleganesh/password-generator.git'
+          }
+        }
+        
+        stage('CHECKING DOCKER') {
+            steps {
+                // Check Kubeaudit is available or not
+                sh 'docker version'
+               }
+        }
+        
+        stage('BUILDING DOCKER IMAGE') {
+            steps {
+                script {
+                // Build Docker image with Jenkins job number as tag
+                docker.build("${env.DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}")
+                }
+            }
+        }
+        
+        stage('Docker Login') {
+            steps {
+                // Use the withCredentials block to access Docker registry credentials securely
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-login', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                    // Login to Docker registry
+                    sh "docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD"
+                }
+            }
+        }
+        
+        stage('PUSH TO DOCKER HUB') {
+            steps {
+                sh "docker push ${env.DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}"
+          }
+        }
+        
+        stage('DELETE LOCAL CREATED DOCKER IMAGE') {
+            steps {
+                sh "docker rmi -f ${env.DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}"
+          }
+        }
+    }
+        post {
+        success {
+            echo 'Build and Image push successfully.'
+        }
+        failure {
+            echo 'Build and Image push failed!'
+        }
+    }
+}
